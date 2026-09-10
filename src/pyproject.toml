@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=62.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mirror"  # 改成你想要的包名，这就是之后导入用的根包名
+version = "0.1.0"
+authors = [
+  { name="hs", email="hansong@mail.tsinghua.edu.cn" }
+]
+description = "Quest子镜"
+requires-python = ">=3.10"
+dynamic = ["dependencies"]
+
+# 因为配置文件在mirror下，直接声明当前目录就是根包
+[tool.setuptools]
+# 如果要把sensor_KP/data里的csv文件一起打包进包，加上这行
+include-package-data = true
+
+# 自动发现包：在当前目录下查找 mirror 包（及其所有子包）
+[tool.setuptools.packages.find]
+where = ["."]                 # 从当前目录（src/）开始找
+include = ["mirror*"]         # 只包含 mirror 这个顶层包
+
+[tool.setuptools.dynamic]
+# 从 requirements.txt 文件读取依赖
+dependencies = { file = "requirements.txt" }

@@ -235,7 +235,7 @@ class DataAnalyzer:
             plt.close()
             return ""
 
-    def plot(self, x_col: str, y_col: str, one_actuator_info: Optional[dict] = None) -> dict:
+    def plot(self, x_col: str, y_col: str, one_actuator_info: Optional[dict] = None, is_linearity_test: Optional[bool] = True) -> dict:
         """对外主接口：绘制所有图表，返回所有生成的图片路径和统计结果，不会向上抛异常"""
         result = {
             "success": False,
@@ -252,23 +252,23 @@ class DataAnalyzer:
                 logger.error("❌ 数据未加载成功，无法绘图")
                 return result
 
-            # 先做相关性分析
-            if not self.is_linear_relationship(x_col, y_col):
-                logger.warning("❌ 数据线性不相关，不再继续绘图")
-                return
+            if not is_linearity_test:
+                result["trend_img"] = self.plot_data_trend(x_col, y_col)   # 绘制趋势图
+            else:
+                if not self.is_linear_relationship(x_col, y_col):          # 先做相关性分析
+                    logger.warning("❌ 数据线性不相关，不再继续绘图")
+                    return
 
-            # 绘制趋势图
-            # result["trend_img"] = self.plot_data_trend(x_col, y_col)
-            # 绘制拟合图
-            self.slope, self.intercept, _, result["fit_img"] = self.plot_linear_relationship(x_col, y_col)
-            one_actuator_info["拟合图名称"] = f"{self.file_basename}_拟合图"
-            print(f"{self.file_basename}_拟合图")
-            one_actuator_info["拟合图"] = result["fit_img"]
-            test_time = re.search(r"data_(.*?)_拟合图", one_actuator_info["拟合图名称"])
-            if test_time:
-                one_actuator_info["测试时间"] = test_time.group(1)
-            one_actuator_info["线性方程"] = f"y = {self.slope:.4f}x + {self.intercept:.4f}"
-            one_actuator_info["线性度"] = f"{self.slope:.4f}"
+                self.slope, self.intercept, _, result["fit_img"] = self.plot_linear_relationship(x_col, y_col)   # 绘制拟合图
+                one_actuator_info["拟合图名称"] = f"{self.file_basename}_拟合图"
+                print(f"{self.file_basename}_拟合图")
+                one_actuator_info["拟合图"] = result["fit_img"]
+                test_time = re.search(r"data_(.*?)_拟合图", one_actuator_info["拟合图名称"])
+                if test_time:
+                    one_actuator_info["测试时间"] = test_time.group(1)
+                one_actuator_info["线性方程"] = f"y = {self.slope:.4f}x + {self.intercept:.4f}"
+                one_actuator_info["线性度"] = f"{self.slope:.4f}"
+
 
             # 回写统计结果
             result.update({
@@ -292,5 +292,5 @@ class DataAnalyzer:
 if __name__ == "__main__":
     # 测试示例
     analyzer = DataAnalyzer("data/4_data_20260517_165503.csv")
-    res = analyzer.plot(y_col='Steps', x_col='Force_Value')
+    res = analyzer.plot(y_col='Steps', x_col='Force_Value', one_actuator_info={"sensor_index": 0, "mirror_id": 1}, is_linearity_test=True)
     print("绘图结果：", res)

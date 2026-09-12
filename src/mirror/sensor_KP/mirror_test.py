@@ -139,16 +139,16 @@ class MirrorsTest:
         self.logger.info(f"✅ 所有测试结果已成功导出到JSON文件: {self.json_file_path}")
         return self.json_file_path
 
-    async def one_amplifier_test(self, amp_ip):
+    async def one_amplifier_test(self, amp_ip, is_linearity_test: Optional[bool] = True):
         async def _wrap_motor_test(motor_test):    # 给单个电机任务包异常捕获，异常只影响自己
             try:
                 part1 = list(range(0, 40001, 5000)) 
                 part2 = list(range(40000, -780001, -20000))
                 part3 = list(range(-780000, -800001, -5000))
                 # 拼接列表
-                # data_list = part1 + part2[1:] + part3[1:]
+                data_list = part1 + part2[1:] + part3[1:]
 
-                data_list = list(range(0, -160000, -5000))
+                # data_list = list(range(0, -240000, -5000))
                 # data_list.reverse()  # 反转列表，使其从大到小排列
 
                 await motor_test.run_test(
@@ -203,7 +203,7 @@ class MirrorsTest:
                                      "线性度": None
                 }
                 one_actuator_info["测试区间"] = "[-150N, 150N]" if one_actuator_info["传感器量程"] == "200N" else "[-60N, 60N]"
-                motor = OneMotorTest(df=self.df, pmac=pmac_controller, amplifier=sensor_reader, one_actuator_info=one_actuator_info)    # 测试传感器对应的电机
+                motor = OneMotorTest(df=self.df, pmac=pmac_controller, amplifier=sensor_reader, one_actuator_info=one_actuator_info, is_linearity_test=is_linearity_test)    # 测试传感器对应的电机
                 task = asyncio.create_task(_wrap_motor_test(motor))
                 tasks.append(task)
             temp_acuatorr_infos = await asyncio.gather(*tasks, return_exceptions=True)
@@ -220,10 +220,10 @@ class MirrorsTest:
                 del sensor_reader
             pass
 
-    async def main(self):
-        async def _wrap_amp_test(amp_ip):       # 给每个放大器任务也加一层异常隔离，单个放大器异常不影响其他
+    async def main(self, is_linearity_test: Optional[bool] = True):
+        async def _wrap_amp_test(amp_ip, is_linearity_test):       # 给每个放大器任务也加一层异常隔离，单个放大器异常不影响其他
             try:
-                await self.one_amplifier_test(amp_ip)
+                await self.one_amplifier_test(amp_ip, is_linearity_test)
             except Exception as e:
                 self.logger.error(f"❌ 放大器{amp_ip}测试异常: {str(e)}")
         
@@ -235,7 +235,7 @@ class MirrorsTest:
             tasks = []
             self.logger.info(f"✅ 找到放大器设备: {[amplifier for amplifier in amplifier_info_list]}")
             for amp_ip in amplifier_info_list:         # 测试设备上的所有放大器
-                task = asyncio.create_task(_wrap_amp_test(amp_ip))
+                task = asyncio.create_task(_wrap_amp_test(amp_ip, is_linearity_test))
                 tasks.append(task)
             await asyncio.gather(*tasks, return_exceptions=True)
             self.save_all_test_result_to_json()
@@ -272,17 +272,18 @@ class MirrorsTest:
         GLOBAL_PLOT_POOL.shutdown(wait=True)
         return False
                 
-async def sensor_test(isDomestic:bool, isMergeCell:bool, mirrorId:int):
+async def sensor_test(isDomestic:bool, isMergeCell:bool, mirrorId:int, isLinearityTest:bool):
     async with MirrorsTest(is_domestic=isDomestic, mirror_id=mirrorId) as test:
-        await test.main()
-        excel_path=f"./mirror{test.mirror_id}_data/sensor_data.xlsx"
-        print(f"{test.all_actuator_info}")
-        excel_handler = ExcelDataHandler(excel_path, test.all_actuator_info, is_merge_cell=isMergeCell)
-        excel_handler.main()
+        await test.main(is_linearity_test = isLinearityTest)
+        if isLinearityTest:
+            excel_path=f"./mirror{test.mirror_id}_data/sensor_data.xlsx"
+            print(f"{test.all_actuator_info}")
+            excel_handler = ExcelDataHandler(excel_path, test.all_actuator_info, is_merge_cell=isMergeCell)
+            excel_handler.main()
 
 if __name__ == "__main__":
     try:
-        asyncio.run(sensor_test(isDomestic=True, isMergeCell=False, mirrorId=1))
+        asyncio.run(sensor_test(isDomestic=True, isMergeCell=False, mirrorId=1, isLinearityTest=True))
     except Exception as e:
         print(f"程序出现异常，正在退出..., {e}")
 

@@ -41,10 +41,10 @@ GLOBAL_PLOT_POOL = ProcessPoolExecutor(
 )
 
 # 写到文件顶层，OneMotorTest类外面，全局可导入
-def run_plot_task(filepath: str, x_col: str, y_col: str, one_actuator_info: Optional[dict] = None) -> bool:
+def run_plot_task(filepath: str, x_col: str, y_col: str, one_actuator_info: Optional[dict] = None, is_linearity_test: Optional[bool] = True):
     """独立绘图任务，进程池可序列化，内部处理异常"""
     try:
-        DataAnalyzer(filepath).plot(x_col, y_col, one_actuator_info)
+        DataAnalyzer(filepath).plot(x_col, y_col, one_actuator_info, is_linearity_test)
         return one_actuator_info
     except Exception as e:
         import logging
@@ -53,7 +53,7 @@ def run_plot_task(filepath: str, x_col: str, y_col: str, one_actuator_info: Opti
 
 
 class OneMotorTest:
-    def __init__(self, df: Optional[pd.DataFrame], pmac, amplifier, one_actuator_info: Optional[dict] = None):
+    def __init__(self, df: Optional[pd.DataFrame], pmac, amplifier, one_actuator_info: Optional[dict] = None, is_linearity_test: Optional[bool] = True):
         self.logger = setup_logger()
         self.motor_id = one_actuator_info["电机id"]
         self._stop_event = asyncio.Event()
@@ -66,6 +66,7 @@ class OneMotorTest:
         self.sensor_index = one_actuator_info["sensor_index"]  # 表示传感器在全部150个传感器中的索引位置，0~149
         self.mirror_id = one_actuator_info["mirror_id"]
         self.one_actuator_info = one_actuator_info
+        self.is_linearity_test = is_linearity_test
         self.test_threshold = list(map(float, re.findall(r'-?\d+\.?\d*', one_actuator_info["测试区间"])))
 
     async def save_to_csv(self):
@@ -90,7 +91,8 @@ class OneMotorTest:
                     filename,
                     'Force_Value',
                     'Steps',
-                    self.one_actuator_info
+                    self.one_actuator_info,
+                    self.is_linearity_test
                 )
                 updated_actuator_info = await loop.run_in_executor(GLOBAL_PLOT_POOL, plot_task)
                 if updated_actuator_info:
@@ -142,7 +144,6 @@ class OneMotorTest:
         self._stop_event.set()  # 设置停止信号
        
     
-    # async def run_test(self, motor_start, motor_stop, motor_step):
     async def run_test(self, data_list):
         sensor_task = None
         safety_task = None

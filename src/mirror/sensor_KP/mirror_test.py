@@ -54,10 +54,11 @@ Id2Controler = {
 }
 
 class MirrorsTest:
-    def __init__(self, is_domestic:bool = True, mirror_id:int = 1):
+    def __init__(self, is_domestic:bool = True, mirror_id:int = 1, is_linearity_test:bool = True):
        self.logger = setup_logger()
        self.is_domestic = is_domestic         #  区分是国产的放大器还是进口的放大器，True表示国产，False表示进口
        self.mirror_id = mirror_id
+       self.is_linearity_test = is_linearity_test
        self.json_file_path = f"mirror{self.mirror_id}.json"
        self.all_actuator_info = {}  # 用于存储所有促动器（电机+传感器+弹簧）的测试信息，方便后续打印和记录
        try:
@@ -93,7 +94,7 @@ class MirrorsTest:
     def get_domestic_amplifier_info(self):  # 国产放大器
         dev_info = []
         start_ip = "192.168.0."  # 起始ip
-        for id in range(105, 106, 1): # 全部需要19个放大器，测试时可根据需要收放
+        for id in range(114, 115, 1): # 全部需要19个放大器，测试时可根据需要收放
             current_ip = start_ip + str(id)
             dev_info.append(current_ip)
         return dev_info
@@ -139,16 +140,16 @@ class MirrorsTest:
         self.logger.info(f"✅ 所有测试结果已成功导出到JSON文件: {self.json_file_path}")
         return self.json_file_path
 
-    async def one_amplifier_test(self, amp_ip, is_linearity_test: Optional[bool] = True):
+    async def one_amplifier_test(self, amp_ip):
         async def _wrap_motor_test(motor_test):    # 给单个电机任务包异常捕获，异常只影响自己
             try:
                 part1 = list(range(0, 40001, 5000)) 
                 part2 = list(range(40000, -780001, -20000))
                 part3 = list(range(-780000, -800001, -5000))
                 # 拼接列表
-                data_list = part1 + part2[1:] + part3[1:]
+                # data_list = part1 + part2[1:] + part3[1:]
 
-                # data_list = list(range(0, -240000, -5000))
+                data_list = list(range(0, -180000, -5000))
                 # data_list.reverse()  # 反转列表，使其从大到小排列
 
                 await motor_test.run_test(
@@ -173,7 +174,7 @@ class MirrorsTest:
 
         try:
             tasks = []
-            for chan_id in range(1, 5):   # 每个放大器有8个通道，测试每个通道对应的电机
+            for chan_id in range(4, 5):   # 每个放大器有8个通道，测试每个通道对应的电机
                 try:
                     matched_chan = self.df[(self.df['Amplifier_ip'] == amp_ip) & (self.df['Channel_id'] == chan_id)]
                     if matched_chan.empty:
@@ -203,7 +204,7 @@ class MirrorsTest:
                                      "线性度": None
                 }
                 one_actuator_info["测试区间"] = "[-150N, 150N]" if one_actuator_info["传感器量程"] == "200N" else "[-60N, 60N]"
-                motor = OneMotorTest(df=self.df, pmac=pmac_controller, amplifier=sensor_reader, one_actuator_info=one_actuator_info, is_linearity_test=is_linearity_test)    # 测试传感器对应的电机
+                motor = OneMotorTest(df=self.df, pmac=pmac_controller, amplifier=sensor_reader, one_actuator_info=one_actuator_info, is_linearity_test=self.is_linearity_test)    # 测试传感器对应的电机
                 task = asyncio.create_task(_wrap_motor_test(motor))
                 tasks.append(task)
             temp_acuatorr_infos = await asyncio.gather(*tasks, return_exceptions=True)
@@ -212,6 +213,7 @@ class MirrorsTest:
                 unique_key = actuator["拟合图名称"]  # 生成全局唯一的key，永远不会重复覆盖
                 self.all_actuator_info[unique_key] = actuator
                 self.logger.info(f"✅ 促动器{unique_key}结果已汇总到全局记录")
+
             self.logger.info(f"✅ 放大器{amp_ip}所有通道测试完成")
         except Exception as e:
             self.logger.error(f"❌ 放大器测试出现异常: {str(e)}")
@@ -220,10 +222,10 @@ class MirrorsTest:
                 del sensor_reader
             pass
 
-    async def main(self, is_linearity_test: Optional[bool] = True):
-        async def _wrap_amp_test(amp_ip, is_linearity_test):       # 给每个放大器任务也加一层异常隔离，单个放大器异常不影响其他
+    async def main(self):
+        async def _wrap_amp_test(amp_ip):       # 给每个放大器任务也加一层异常隔离，单个放大器异常不影响其他
             try:
-                await self.one_amplifier_test(amp_ip, is_linearity_test)
+                await self.one_amplifier_test(amp_ip)
             except Exception as e:
                 self.logger.error(f"❌ 放大器{amp_ip}测试异常: {str(e)}")
         
@@ -235,7 +237,7 @@ class MirrorsTest:
             tasks = []
             self.logger.info(f"✅ 找到放大器设备: {[amplifier for amplifier in amplifier_info_list]}")
             for amp_ip in amplifier_info_list:         # 测试设备上的所有放大器
-                task = asyncio.create_task(_wrap_amp_test(amp_ip, is_linearity_test))
+                task = asyncio.create_task(_wrap_amp_test(amp_ip))
                 tasks.append(task)
             await asyncio.gather(*tasks, return_exceptions=True)
             self.save_all_test_result_to_json()
@@ -273,9 +275,9 @@ class MirrorsTest:
         return False
                 
 async def sensor_test(isDomestic:bool, isMergeCell:bool, mirrorId:int, isLinearityTest:bool):
-    async with MirrorsTest(is_domestic=isDomestic, mirror_id=mirrorId) as test:
-        await test.main(is_linearity_test = isLinearityTest)
-        if isLinearityTest:
+    async with MirrorsTest(is_domestic=isDomestic, mirror_id=mirrorId, is_linearity_test=isLinearityTest) as test:
+        await test.main()
+        if test.is_linearity_test:
             excel_path=f"./mirror{test.mirror_id}_data/sensor_data.xlsx"
             print(f"{test.all_actuator_info}")
             excel_handler = ExcelDataHandler(excel_path, test.all_actuator_info, is_merge_cell=isMergeCell)
@@ -283,7 +285,7 @@ async def sensor_test(isDomestic:bool, isMergeCell:bool, mirrorId:int, isLineari
 
 if __name__ == "__main__":
     try:
-        asyncio.run(sensor_test(isDomestic=True, isMergeCell=False, mirrorId=1, isLinearityTest=True))
+        asyncio.run(sensor_test(isDomestic=True, isMergeCell=True, mirrorId=1, isLinearityTest=True))
     except Exception as e:
         print(f"程序出现异常，正在退出..., {e}")
 

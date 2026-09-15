@@ -73,20 +73,25 @@ class PMAC_Controller:
             )
             try:
                 # 2. 启动GP-ASCII会话
-                self.writer, self.stdout, self.stderr = await self.conn.open_session(term_type="vt100")  # 用于在建立 SSH 连接后打开一个新的会话（session）。通过这个会话，你可以执行远程命令、启动子进程等
-                
+                self.writer, self.stdout, self.stderr = await self.conn.open_session(term_type="vt100", request_pty=True)  # 用于在建立 SSH 连接后打开一个新的会话（session）。通过这个会话，你可以执行远程命令、启动子进程等
+                # self.logger.info(f"[DEBUG] 2, SSH login output")
+
                 # 3. 验证SSH登录
                 output = await asyncio.wait_for(self.stdout.readuntil(self.SSH_LOGIN_PROMPT), timeout=self.SSH_CONN_TIMEOUT)
+                # self.logger.info(f"[DEBUG] 3, SSH login output = {output!r}")
                 
                 # 4. 启动gpascii模式
                 await self._write("gpascii -2 -f")
+                # self.writer.write("gpascii -2 -f\r\n")
+                # await self.writer.drain()
                 output = await asyncio.wait_for(self.stdout.readuntil(self.GPA_LOGIN_ACK), timeout=self.SSH_CONN_TIMEOUT)  # stdout.readuntil:允许从标准输出流中读取数据，直到遇到指定的分隔符为止
-                
+                self.logger.info(f"[DEBUG], SSH login output = {output!r}")
+
                 # 5. 验证GP-ASCII会话
                 if self.GPA_LOGIN_PROMPT in output:
                     self.logger.info("Connection to PMAC is OK")
                     return True
-                self.logger.warning(f"GPA is FAILED: MISMATCH LOGIN PROMPT")
+                self.logger.warning(f"GPA is FAILED: MISMATCH LOGIN PROMPT, got: {output!r}")
                 return False
             except asyncio.TimeoutError:
                 self.logger.warning(f"GPA is FAILED: TIMEOUT (>{self.SSH_CONN_TIMEOUT})")

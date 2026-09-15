@@ -35,7 +35,7 @@ MOTOR_STEPS_LIMIT = 5000
 FORCE_TIMEOUT = 2.0
 
 
-outer2inner_Map = {
+outer2inner_Map = {  # 外圈：内圈
     "6a": "16",   "6b": "19",
     "3a": "10",   "3b": "13",
     "5a": "15",   "5b": "18",

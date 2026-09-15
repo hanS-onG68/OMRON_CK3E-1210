@@ -128,8 +128,8 @@ class ExcelDataHandler:
         print("带图片的表格排序完成，所有图片自动跟随行移动")
 
     def main(self):
-        if not self.all_actuator_info:
-            return
+        # if not self.all_actuator_info:
+        #     return
         self.batch_insert_images()
         if self.is_merge_cell:
             self.sort_excel_with_images()

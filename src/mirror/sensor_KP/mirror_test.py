@@ -213,6 +213,29 @@ class MirrorsTest:
                 unique_key = actuator["拟合图名称"]  # 生成全局唯一的key，永远不会重复覆盖
                 self.all_actuator_info[unique_key] = actuator
                 self.logger.info(f"✅ 促动器{unique_key}结果已汇总到全局记录")
+                motor_id = actuator["电机id"]
+                if self.is_linearity_test:
+                    self.logger.info(f"✅ 电机{motor_id}开始回到0脉冲, 方便下次线性度测试")
+                    await asyncio.wait_for(pmac_controller.exec_command(f"#{motor_id}J=0"), timeout=3)
+                    pos = None
+                    loop = asyncio.get_running_loop()
+                    end_time = loop.time() + 60                                    # 设置超时时间为60秒; loop.time()返回的是事件循环的时间戳，单位是秒
+                    while loop.time() < end_time:
+                        pos = await pmac_controller.exec_command(f"#{motor_id}P")  # 获取电机当前位置
+                        self.logger.info(f"电机{motor_id} 当前位置: {pos}")
+                        try:
+                            pos = float(pos)
+                        except Exception:
+                            self.logger.warning(f"⚠️ 电机{motor_id}当前位置获取失败，返回值: {pos}")
+                            pos = None
+                            continue
+                        if pos is not None and abs(pos) < 1e-3:  # 允许一定的误差范围，认为电机已经回到0脉冲
+                            self.logger.info(f"✅ 电机{motor_id}已成功回到0脉冲")
+                            break
+                        else:
+                            self.logger.info(f"⚠️ 电机{motor_id}未回到0脉冲, 继续等待...")
+                        await asyncio.sleep(0.5)  # 0.5s轮询，不占CPU
+            self.logger.info(f"✅ 放大器{amp_ip}所有通道测试完成, 正在等待电机回到0脉冲...")
 
             self.logger.info(f"✅ 放大器{amp_ip}所有通道测试完成")
         except Exception as e:

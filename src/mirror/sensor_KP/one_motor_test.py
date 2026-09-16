@@ -200,10 +200,6 @@ class OneMotorTest:
             # 停止电机
             try:
                 if self.pmac and self.pmac.is_connected:
-                    # if self.is_linearity_test:
-                    #     self.logger.info(f"✅ 电机{self.motor_id}开始回到0脉冲，方便下次线性度测试")
-                    #     await asyncio.wait_for(self.pmac.exec_command(f"#{self.motor_id}J=0"), timeout=10)  # 电机回到0脉冲，方便下次线性度测试
-                    #     await asyncio.sleep(10)  # 等待电机回到0脉冲
                     await self.pmac.exec_command(f"#{self.motor_id}k")
                     self.logger.info(f"✅ 电机{self.motor_id}已成功去使能")
                 else:

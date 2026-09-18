@@ -204,7 +204,7 @@ class OneMotorTest:
                     self.logger.info(f"✅ 电机{self.motor_id}已成功去使能")
                 else:
                     # 连接已断开的情况下尝试重连停电机
-                    self.logger.warning(f"PMAC连接已断开，尝试重连停电机{self.motor_id}")
+                    self.logger.warning(f"PMAC连接已断开, 尝试重连停电机{self.motor_id}")
                     async with PMAC_Controller(SSH_Config(host = "192.168.0.201")) as pmac_reconnect:
                         await pmac_reconnect.connect()
                         await pmac_reconnect.exec_command(f"#{self.motor_id}k")

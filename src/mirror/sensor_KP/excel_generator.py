@@ -16,7 +16,7 @@ class ExcelDataHandler:
         self.init_excel()
         self.all_actuator_info = all_actuator_info
         self.is_merge_cell = is_merge_cell
-        self.header_col_map = { "测试时间": "A", "电机id": "B", "传感器id": "C", "弹簧id": "D", "传感器量程": "E", "测试区间": "F", "脉冲范围": "G", "拟合图": "H", "线性方程": "I", "线性度": "J", "平均线性度": "K" }
+        self.header_col_map = { "测试时间": "A", "电机id": "B", "传感器id": "C", "传感器量程": "D", "测试区间": "E", "脉冲范围": "F", "拟合图": "G", "线性方程": "H", "线性度": "I", "平均线性度": "J" }
         self.file_dir = None
         pass
 
@@ -27,7 +27,7 @@ class ExcelDataHandler:
             self.ws = self.wb.active
             self.ws.title = "Sensor Data"
             # 添加表头
-            self.ws.append(["测试时间", "电机id", "传感器id", "弹簧id", "传感器量程", "测试区间", "脉冲范围", "拟合图", "线性方程", "线性度", "平均线性度"])
+            self.ws.append(["测试时间", "电机id", "传感器id", "传感器量程", "测试区间", "脉冲范围", "拟合图", "线性方程", "线性度", "平均线性度"])
             self.wb.save(self.excel_path)  # 保存文件到当前路径下
         else:
             try:
@@ -43,7 +43,7 @@ class ExcelDataHandler:
                 self.wb = Workbook()
                 self.ws = self.wb.active
                 self.ws.title = "Sensor Data"
-                self.ws.append(["测试时间", "电机id", "传感器id", "弹簧id", "传感器量程", "测试区间", "脉冲范围", "拟合图", "线性方程", "线性度", "平均线性度"])
+                self.ws.append(["测试时间", "电机id", "传感器id", "传感器量程", "测试区间", "脉冲范围", "拟合图", "线性方程", "线性度", "平均线性度"])
                 self.wb.save(self.excel_path)
 
     def batch_insert_images(self):
@@ -67,7 +67,7 @@ class ExcelDataHandler:
             self.ws[f"{self.header_col_map['电机id']}{current_row}"] = actuator_info["电机id"]
             self.ws[f"{self.header_col_map['测试时间']}{current_row}"] = actuator_info["测试时间"]
             self.ws[f"{self.header_col_map['传感器id']}{current_row}"] = actuator_info["传感器id"]
-            self.ws[f"{self.header_col_map['弹簧id']}{current_row}"] = actuator_info["弹簧id"]
+            # self.ws[f"{self.header_col_map['弹簧id']}{current_row}"] = actuator_info["弹簧id"]
             self.ws[f"{self.header_col_map['传感器量程']}{current_row}"] = actuator_info["传感器量程"]
             self.ws[f"{self.header_col_map['测试区间']}{current_row}"] = actuator_info["测试区间"]
             self.ws[f"{self.header_col_map['脉冲范围']}{current_row}"] = actuator_info["脉冲范围"]
@@ -102,7 +102,7 @@ class ExcelDataHandler:
         for row in range(start_row, self.ws.max_row + 1, 3):
             self.ws.merge_cells(f"{self.header_col_map['电机id']}{row}:{self.header_col_map['电机id']}{row + 2}")
             self.ws.merge_cells(f"{self.header_col_map['传感器id']}{row}:{self.header_col_map['传感器id']}{row + 2}")
-            self.ws.merge_cells(f"{self.header_col_map['弹簧id']}{row}:{self.header_col_map['弹簧id']}{row + 2}")
+            # self.ws.merge_cells(f"{self.header_col_map['弹簧id']}{row}:{self.header_col_map['弹簧id']}{row + 2}")
             self.ws.merge_cells(f"{self.header_col_map['传感器量程']}{row}:{self.header_col_map['传感器量程']}{row + 2}")
             self.ws.merge_cells(f"{self.header_col_map['平均线性度']}{row}:{self.header_col_map['平均线性度']}{row + 2}")
             self.ws[f"{self.header_col_map['平均线性度']}{row}"] = f"=AVERAGE({self.header_col_map['线性度']}{row}:{self.header_col_map['线性度']}{row + 2})"
@@ -146,7 +146,7 @@ if __name__ == "__main__":
                     "传感器量程": "200N",
                     "脉冲范围": "[0, -20W, -5K]",
                     "电机id": 1,
-                    "弹簧id": 1,
+                    # "弹簧id": 1,
                     "线性度": 4008,
                     "amplifier_id": 0,
                     "channel_id": 3,
@@ -163,7 +163,7 @@ if __name__ == "__main__":
                     "传感器量程": "200N",
                     "脉冲范围": "[0, -20W, -5K]",
                     "电机id": 1,
-                    "弹簧id": 1,
+                    # "弹簧id": 1,
                     "线性度": 4009,
                     "amplifier_id": 0,
                     "channel_id": 3,
@@ -180,7 +180,7 @@ if __name__ == "__main__":
                     "传感器量程": "200N",
                     "脉冲范围": "[0, -20W, -5K]",
                     "电机id": 1,
-                    "弹簧id": 1,
+                    # "弹簧id": 1,
                     "线性度": 4018,
                     "amplifier_id": 0,
                     "channel_id": 3,

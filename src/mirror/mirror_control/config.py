@@ -22,7 +22,7 @@ SHM_NAME = "QUEST_Mirrors_Control"
 
 DEFAULT_CTRL_IPS = [f"192.168.0.{200+i}" for i in range(2)]
 # DEFAULT_AMP_PORTS = [f"/dev/ttyr{i:02d}" for i in range(19)]      # 进口放大器
-DEFAULT_AMP_PORTS = [f"192.168.0.{i}" for i in range(100, 104, 1)]  # 国产放大器
+DEFAULT_AMP_PORTS = [f"192.168.0.{i}" for i in range(104, 107, 1)]  # 国产放大器
 
 
 
@@ -35,7 +35,7 @@ MOTOR_STEPS_LIMIT = 5000
 FORCE_TIMEOUT = 2.0
 
 
-outer2inner_Map = {  # 外圈：内圈
+outer2inner_Map = {
     "6a": "16",   "6b": "19",
     "3a": "10",   "3b": "13",
     "5a": "15",   "5b": "18",

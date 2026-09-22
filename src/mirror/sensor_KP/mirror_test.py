@@ -25,11 +25,11 @@ import json,os
 from mirror.sensor_KP.excel_generator import ExcelDataHandler
 
 # 6个子镜对应6个pmac控制器
-# config0 = SSH_Config()   # host = "192.168.0.200"
-# pmac_controler0 = PMAC_Controller(config0)
+config0 = SSH_Config()   # host = "192.168.0.200"
+pmac_controler0 = PMAC_Controller(config0)
 
-config1 = SSH_Config(host = "192.168.0.201")
-pmac_controler1 = PMAC_Controller(config1)
+# config1 = SSH_Config(host = "192.168.0.201")
+# pmac_controler1 = PMAC_Controller(config1)
 
 # config2 = SSH_Config(host = "192.168.0.202")
 # pmac_controler2 = PMAC_Controller(config2)
@@ -45,8 +45,8 @@ pmac_controler1 = PMAC_Controller(config1)
 
 
 Id2Controler = {
-    # "192.168.0.200": pmac_controler0,
-    "192.168.0.201": pmac_controler1,
+    "192.168.0.200": pmac_controler0,
+    # "192.168.0.201": pmac_controler1,
     # "192.168.0.202": pmac_controler2,
     # "192.168.0.203": pmac_controler3,
     # "192.168.0.204": pmac_controler4,
@@ -94,7 +94,7 @@ class MirrorsTest:
     def get_domestic_amplifier_info(self):  # 国产放大器
         dev_info = []
         start_ip = "192.168.0."  # 起始ip
-        for id in range(114, 115, 1): # 全部需要19个放大器，测试时可根据需要收放
+        for id in range(107, 110, 1): # 全部需要19个放大器，测试时可根据需要收放
             current_ip = start_ip + str(id)
             dev_info.append(current_ip)
         return dev_info
@@ -149,7 +149,7 @@ class MirrorsTest:
                 # 拼接列表
                 # data_list = part1 + part2[1:] + part3[1:]
 
-                data_list = list(range(0, -180000, -5000))
+                data_list = list(range(0, -200000, -5000))
                 # data_list.reverse()  # 反转列表，使其从大到小排列
 
                 await motor_test.run_test(
@@ -174,7 +174,8 @@ class MirrorsTest:
 
         try:
             tasks = []
-            for chan_id in range(4, 5):   # 每个放大器有8个通道，测试每个通道对应的电机
+            cmds = []
+            for chan_id in range(5, 9):   # 每个放大器有8个通道，测试每个通道对应的电机
                 try:
                     matched_chan = self.df[(self.df['Amplifier_ip'] == amp_ip) & (self.df['Channel_id'] == chan_id)]
                     if matched_chan.empty:
@@ -207,36 +208,19 @@ class MirrorsTest:
                 motor = OneMotorTest(df=self.df, pmac=pmac_controller, amplifier=sensor_reader, one_actuator_info=one_actuator_info, is_linearity_test=self.is_linearity_test)    # 测试传感器对应的电机
                 task = asyncio.create_task(_wrap_motor_test(motor))
                 tasks.append(task)
+                cmds.append(f"#{one_actuator_info['电机id']}J=0")
             temp_acuatorr_infos = await asyncio.gather(*tasks, return_exceptions=True)
+            cmd = " ".join(cmds)
             for actuator in temp_acuatorr_infos:
                 print(f"当前促动器的信息: {actuator}")
                 unique_key = actuator["拟合图名称"]  # 生成全局唯一的key，永远不会重复覆盖
                 self.all_actuator_info[unique_key] = actuator
                 self.logger.info(f"✅ 促动器{unique_key}结果已汇总到全局记录")
-                motor_id = actuator["电机id"]
-                if self.is_linearity_test:
-                    self.logger.info(f"✅ 电机{motor_id}开始回到0脉冲, 方便下次线性度测试")
-                    await asyncio.wait_for(pmac_controller.exec_command(f"#{motor_id}J=0"), timeout=3)
-                    pos = None
-                    loop = asyncio.get_running_loop()
-                    end_time = loop.time() + 60                                    # 设置超时时间为60秒; loop.time()返回的是事件循环的时间戳，单位是秒
-                    while loop.time() < end_time:
-                        pos = await pmac_controller.exec_command(f"#{motor_id}P")  # 获取电机当前位置
-                        self.logger.info(f"电机{motor_id} 当前位置: {pos}")
-                        try:
-                            pos = float(pos)
-                        except Exception:
-                            self.logger.warning(f"⚠️ 电机{motor_id}当前位置获取失败，返回值: {pos}")
-                            pos = None
-                            continue
-                        if pos is not None and abs(pos) < 1e-3:  # 允许一定的误差范围，认为电机已经回到0脉冲
-                            self.logger.info(f"✅ 电机{motor_id}已成功回到0脉冲")
-                            break
-                        else:
-                            self.logger.info(f"⚠️ 电机{motor_id}未回到0脉冲, 继续等待...")
-                        await asyncio.sleep(0.5)  # 0.5s轮询，不占CPU
-            self.logger.info(f"✅ 放大器{amp_ip}所有通道测试完成, 正在等待电机回到0脉冲...")
 
+            if self.is_linearity_test:
+                self.logger.info(f"✅ 本次测试的电机开始准备回到0脉冲, 以便下次线性度测试, cmd = {cmd}")
+                await asyncio.wait_for(pmac_controller.exec_command(cmd), timeout=3)
+                await asyncio.sleep(6)   # 等待电机回到0脉冲
             self.logger.info(f"✅ 放大器{amp_ip}所有通道测试完成")
         except Exception as e:
             self.logger.error(f"❌ 放大器测试出现异常: {str(e)}")
@@ -308,7 +292,7 @@ async def sensor_test(isDomestic:bool, isMergeCell:bool, mirrorId:int, isLineari
 
 if __name__ == "__main__":
     try:
-        asyncio.run(sensor_test(isDomestic=True, isMergeCell=True, mirrorId=1, isLinearityTest=True))
+        asyncio.run(sensor_test(isDomestic=True, isMergeCell=True, mirrorId=3, isLinearityTest=True))
     except Exception as e:
         print(f"程序出现异常，正在退出..., {e}")
 

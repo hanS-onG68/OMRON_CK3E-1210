@@ -55,7 +55,7 @@ class Mirrors:
 
         # 调试时选择：
         Mirrors.Target.fill(10.0)
-        self.Available[1, :] = True    # 选择几号边缘子镜
+        self.Available[0, :] = True    # 选择几号边缘子镜
 
 
         # 映射索引
@@ -68,7 +68,7 @@ class Mirrors:
         # 共享内存
         self.shm = self._create_shm()
         self._buffer = np.ndarray((CAPACITY_SENSORS*2,), dtype=np.float64, buffer=self.shm.buf)
-        self._buffer.fill(0.0)                             # 初始化共享内存数据区，避免初始全0导致的误动
+        self._buffer.fill(0.0)                              # 初始化共享内存数据区，避免初始全0导致的误动
         self._data =  self._buffer[:CAPACITY_SENSORS]       # 传感器数据视图，零拷贝
         self._timestamp = self._buffer[CAPACITY_SENSORS:]   # 传感器时间戳视图，零拷贝
 
@@ -114,13 +114,14 @@ class Mirrors:
 
     def _create_controllers(self):
         ip_file = resources.files("mirror.mirror_control").joinpath("settings/Controller_IP.csv")
-        self.controller_ips = self._load_hardware_config(ip_file, col=1, defaults=DEFAULT_CTRL_IPS)
+        # self.controller_ips = self._load_hardware_config(ip_file, col=1, defaults=DEFAULT_CTRL_IPS)
+        self.controller_ips = self._load_hardware_config(ip_file)
         print(f"controller_ips = {self.controller_ips}")
         self.Controllers = dict()
         for ctrl_id in np.unique(self.controller_id[self.Available.ravel()]):
             print(f"ctrl_id = {ctrl_id}")
-            if ctrl_id != 1:  # 临时调试
-                continue
+            # if ctrl_id != 1:  # 临时调试
+            #     continue
             ctrl_ip = self.controller_ips[ctrl_id]
             print(f"ctrl_ip = {ctrl_ip}")
             config = SSH_Config(ctrl_ip)
@@ -133,14 +134,15 @@ class Mirrors:
         def run_collector(amp_info:str, amp_id:int, shm_name:str, stop_event:Event, start_time:float, *, interval:float=2.0, data_rate:float=1.0, debug=False, is_domestic:bool = True):
             asyncio.run(collector(amp_info, amp_id, shm_name, stop_event, start_time, interval=1.0, data_rate=1.0, debug=debug, is_domestic=is_domestic))
         amp_file = resources.files("mirror.mirror_control").joinpath("settings/Domestic_Amplifier_Mapping.csv") if self.is_domestic else resources.files("mirror.mirror_control").joinpath("settings/Imported_Amplifier_Mapping.csv")
-        self.amplifers = self._load_hardware_config(amp_file, col=1, defaults=DEFAULT_AMP_PORTS)
+        # self.amplifers = self._load_hardware_config(amp_file, col=1, defaults=DEFAULT_AMP_PORTS)
+        self.amplifers = self._load_hardware_config(amp_file)
         self.logger.info(f"amplifers = {self.amplifers}")
         self.start_time = time.monotonic()
         self.Amplifiers = dict()
         for amp_id in np.unique(self.amplifer_id[self.Available.ravel()]):
             self.logger.info(f"amp_id = {amp_id}")
-            if amp_id >= len(self.amplifers):
-                continue
+            # if amp_id >= len(self.amplifers):
+            #     continue
             amp_info = self.amplifers[amp_id]   # 国产：amp_info表示ip，进口：amp_info表示串口号（形如：/dev/ttry00）
             self.logger.info(f"amp_info = {amp_info}")
             worker = Process(    # 放大器：单进程设备
@@ -169,21 +171,28 @@ class Mirrors:
         self.Available[rows, cols] = False
 
     @staticmethod
-    def _load_hardware_config(filepath, col, defaults):
-        try:
-            data = np.loadtxt(filepath, delimiter=',', dtype=str, skiprows=1, comments='#')
-        except OSError:
-            return defaults.copy()
-        if data.ndim == 1:                # 判断是否为一维数组          
-            data = data.reshape(1, -1)    # 重塑为 1 行，列数自动推断（-1 表示自动计算列数），2维
-        loaded = data[:, col].tolist()  
-        loaded = [s.strip() for s in loaded]  # s.strip()：去除s的首尾空字符；s.strip('#')：去除s的首尾'#'字符
-        n = len(defaults)
-        if len(loaded) < n:
-            loaded.extend(defaults[len(loaded):])
-        elif len(loaded) > n:
-            loaded = loaded[:n]
-        return loaded
+    def _load_hardware_config(filepath):
+        # try:
+        #     data = np.loadtxt(filepath, delimiter=',', dtype=str, skiprows=1, comments='#')
+        # except OSError:
+        #     return defaults.copy()
+        # if data.ndim == 1:                # 判断是否为一维数组          
+        #     data = data.reshape(1, -1)    # 重塑为 1 行，列数自动推断（-1 表示自动计算列数），2维
+        # loaded = data[:, col].tolist()  
+        # loaded = [s.strip() for s in loaded]  # s.strip()：去除s的首尾空字符；s.strip('#')：去除s的首尾'#'字符
+        # n = len(defaults)
+        # if len(loaded) < n:
+        #     loaded.extend(defaults[len(loaded):])
+        # elif len(loaded) > n:
+        #     loaded = loaded[:n]
+        # return loaded
+        data = np.loadtxt(filepath, delimiter=',', dtype=str, skiprows=1, comments='#')
+        dev_id = np.char.strip(data[:, 0]).astype(int)
+        dev_ip = np.char.strip(data[:, 1])
+        dev_data = np.zeros(dev_id.max() + 1, dtype='<U15')
+        dev_data[dev_id.astype(int)] = dev_ip
+        return dev_data.tolist()
+
 
     def get_force(self):
         """获取最新力传感器数据和时间戳 -- 花式索引, 一次拷贝, 1.17us"""

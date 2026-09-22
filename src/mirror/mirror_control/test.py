@@ -1,35 +1,20 @@
 import asyncio
 from mirror.amplifier.domestic_amplifier import Amplifier as amp
 from contextlib import AsyncExitStack
+import numpy as np
+from importlib import resources
 
+amp_file = resources.files("mirror.mirror_control").joinpath("settings/Domestic_Amplifier_Mapping.csv") 
+data = np.loadtxt(amp_file, delimiter=',', dtype=str, skiprows=1, comments='#')
+# dev_data = np.zeros(len(data), dtype=str)
+# print(f"data = {data}-{data.shape}, dev_data = {dev_data}-{dev_data.shape}")
+dev_id = np.char.strip(data[:, 0]).astype(int)
+dev_ip = np.char.strip(data[:, 1])
+# dev_id, dev_ip = data.T
+print(f"dev_id = {dev_id}-{dev_id.shape}, dev_ip = {dev_ip}-{dev_ip.shape}")
+dev_data = np.zeros(dev_id.max() + 1, dtype='<U15')
+dev_data[dev_id.astype(int)] = dev_ip
 
-params1 = {
-        "host":     "192.168.0.100" ,    # 设备IP
-        "port":     502,                # Modbus TCP端口，默认502
-        "timeout":  3,                  # 连接/响应超时(秒)
-        "retries":  3,                  # 重试次数
-        "slave_id": 1                   # Modbus从站地址，文档默认1
-}
-
-params2 = {
-        "host":     "192.168.0.102" ,    # 设备IP
-        "port":     502,                # Modbus TCP端口，默认502
-        "timeout":  3,                  # 连接/响应超时(秒)
-        "retries":  3,                  # 重试次数
-        "slave_id": 1                   # Modbus从站地址，文档默认1
-}
-
-async def main():
-    # 用AsyncExitStack统一管理两个异步资源，并行建立连接
-    async with AsyncExitStack() as stack:
-        reader1, reader2 = await asyncio.gather(
-            stack.enter_async_context(amp(**params1)),
-            stack.enter_async_context(amp(**params2))
-        )
-        # 两个设备连接就绪后再执行读取操作
-        await asyncio.gather(
-            reader1.display_all_channels(),
-            reader2.display_all_channels()
-        )
-
-asyncio.run(main())
+print(f"dev_data = {dev_data}-{dev_data.shape}")
+i= dev_data.tolist()
+print(f"i = {i}-{len(i)}")

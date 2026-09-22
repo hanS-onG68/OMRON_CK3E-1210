@@ -94,7 +94,7 @@ class MirrorsTest:
     def get_domestic_amplifier_info(self):  # 国产放大器
         dev_info = []
         start_ip = "192.168.0."  # 起始ip
-        for id in range(107, 110, 1): # 全部需要19个放大器，测试时可根据需要收放
+        for id in range(114, 115, 1): # 全部需要19个放大器，测试时可根据需要收放
             current_ip = start_ip + str(id)
             dev_info.append(current_ip)
         return dev_info
@@ -175,7 +175,7 @@ class MirrorsTest:
         try:
             tasks = []
             cmds = []
-            for chan_id in range(5, 9):   # 每个放大器有8个通道，测试每个通道对应的电机
+            for chan_id in range(3, 4):   # 每个放大器有8个通道，测试每个通道对应的电机
                 try:
                     matched_chan = self.df[(self.df['Amplifier_ip'] == amp_ip) & (self.df['Channel_id'] == chan_id)]
                     if matched_chan.empty:
